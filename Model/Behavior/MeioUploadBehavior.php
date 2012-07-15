@@ -939,6 +939,9 @@ class MeioUploadBehavior extends ModelBehavior {
 		$phpThumb = new phpthumb;
 		$phpThumb->setSourceFilename($source);
 		$phpThumb->config_disable_debug = !Configure::read('debug');
+		$phpThumb->config_error_silent_die_on_error = !Configure::read('debug');
+		$phpThumb->config_temp_directory = TMP;
+		$phpThumb->config_cache_directory = CACHE;
 
 		if ($params['maxDimension'] == 'w') {
 			$phpThumb->w = $params['thumbWidth'];
@@ -966,7 +969,7 @@ class MeioUploadBehavior extends ModelBehavior {
 		$phpThumb->config_imagemagick_path = $this->__fields[$model->alias][$fieldName]['imageMagickPath'];
 
 		// Setting whether to die upon error
-		$phpThumb->config_error_die_on_error = true;
+		$phpThumb->config_error_die_on_error = false;
 		// Creating thumbnail
 		if ($phpThumb->GenerateThumbnail()) {
 			if (!$phpThumb->RenderToFile($target)) {
