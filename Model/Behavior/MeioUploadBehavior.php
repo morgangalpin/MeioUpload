@@ -460,7 +460,7 @@ class MeioUploadBehavior extends ModelBehavior {
 		if ($currentWorkingDirectory != WWW_ROOT) {
 			chdir(WWW_ROOT);
 		}
-		
+
 		foreach ($data as $fieldName => $field) {
 			if (!$model->validate[$fieldName]['Dir']['check']) {
 				continue;
@@ -568,7 +568,7 @@ class MeioUploadBehavior extends ModelBehavior {
 				continue;
 			}
 			$options = $this->__fields[$model->alias][$fieldName];
-			if (!empty($field['name']) && count($options['allowedMime']) > 0 && !in_array($field['type'], $options['allowedMime'])) {
+			if (is_array($field) && !empty($field['name']) && count($options['allowedMime']) > 0 && !in_array($field['type'], $options['allowedMime'])) {
 				$info = @getimagesize($field['tmp_name']);
 				if ($info !== false && in_array($info['mime'], $options['allowedMime'])) {
 					continue;
@@ -606,12 +606,20 @@ class MeioUploadBehavior extends ModelBehavior {
 				continue;
 			}
 			$options = $this->__fields[$model->alias][$fieldName];
-			if (!empty($field['name'])) {
+			if (is_array($field) && !empty($field['name'])) {
+				$filename = $field['name'];
+			} elseif (is_string($field)) {
+				$filename = $field;
+			} else {
+				$filename = null;
+			}
+			if (!empty($filename)) {
 				if (count($options['allowedExt']) > 0) {
 					$matches = 0;
 					foreach ($options['allowedExt'] as $extension) {
-						if (strtolower(substr($field['name'], -strlen($extension))) == strtolower($extension)) {
+						if (strtolower(substr($filename, -strlen($extension))) == strtolower($extension)) {
 							$matches++;
+							break; // Don't bother checking the rest of the extensions.
 						}
 					}
 
@@ -683,7 +691,7 @@ class MeioUploadBehavior extends ModelBehavior {
  */
 	function _uploadCheckSize(&$model, &$data, $type) {
 		foreach ($data as $fieldName => $field) {
-			if (!$model->validate[$fieldName][ucfirst($type)]['check'] || empty($field['tmp_name'])) {
+			if (!$model->validate[$fieldName][ucfirst($type)]['check'] || !is_array($field) || !empty($field['tmp_name'])) {
 				continue;
 			}
 			$options = $this->__fields[$model->alias][$fieldName];
@@ -711,13 +719,13 @@ class MeioUploadBehavior extends ModelBehavior {
  * @access public
  */
 	function uploadCheckHttpPost(&$model, $data) {
-		
+
 		foreach ($data as $fieldName => $field) {
 			if (!$model->validate[$fieldName]['HttpPost']['check']) {
 				continue;
 			}
 
-			if (!empty($field['tmp_name'])) {
+			if (is_array($field) && !empty($field['tmp_name'])) {
 				return is_uploaded_file($field['tmp_name']);
 			}
 		}
@@ -1171,8 +1179,10 @@ class MeioUploadBehavior extends ModelBehavior {
 		} else {
 			$model->validate[$fieldName] = array();
 		}
-		$model->validate[$fieldName] = $this->_arrayMerge($this->defaultValidations, $model->validate[$fieldName]);
-		$model->validate[$fieldName] = $this->_arrayMerge($options['validations'], $model->validate[$fieldName]);
+
+		// Merge the lists of validations. $this->defaultValidations < $options['validations'] < $model->validate[$fieldName]
+		$validations = $this->_arrayMerge($this->defaultValidations, $options['validations']);
+		$model->validate[$fieldName] = $this->_arrayMerge($validations, $model->validate[$fieldName]);
 	}
 
 
@@ -1216,7 +1226,7 @@ class MeioUploadBehavior extends ModelBehavior {
  */
 	function _copyFileFromTemp($tmpName, $saveAs, $filePermission) {
 		$results = true;
-		
+
 		$file = new File($tmpName, $saveAs);
 		$temp = new File($saveAs, true, $filePermission);
 		if (!$temp->write($file->read())) {
